@@ -9,8 +9,12 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
+camera.position.set(4.61, 2.74, 8);
 
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({
+  alpha: true,
+  antialias: true,
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
@@ -24,7 +28,7 @@ class Box extends THREE.Mesh {
     color = 0x00ff00,
     velocity = { x: 0, y: 0, z: 0 },
     position = { x: 0, y: 0, z: 0 },
-    zAcceleration=false
+    zAcceleration = false,
   }) {
     super(
       new THREE.BoxGeometry(width, height, depth),
@@ -61,9 +65,8 @@ class Box extends THREE.Mesh {
   }
 
   update(ground) {
-
     this.updateSides();
-    if(this.zAcceleration)this.velocity.z+=0.003
+    if (this.zAcceleration) this.velocity.z += 0.003;
 
     this.position.x += this.velocity.x;
     this.position.z += this.velocity.z;
@@ -74,7 +77,8 @@ class Box extends THREE.Mesh {
     this.velocity.y += this.gravity;
 
     if (boxCollision({ box1: this, box2: ground })) {
-      this.velocity.y *= 0.8;
+      const friction = 0.5;
+      this.velocity.y *= friction;
       this.velocity.y = -this.velocity.y;
     } else this.position.y += this.velocity.y;
   }
@@ -104,10 +108,10 @@ cube.castShadow = true;
 scene.add(cube);
 
 const ground = new Box({
-  width: 5,
+  width: 10,
   height: 0.5,
-  depth: 10,
-  color: 0x0000ff,
+  depth: 55,
+  color: "#F2AF33",
   position: {
     x: 0,
     y: -2,
@@ -119,10 +123,12 @@ scene.add(ground);
 
 //Light
 const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.z = 2;
+light.position.z = 1;
 light.position.y = 3;
 light.castShadow = true;
 scene.add(light);
+
+scene.add(new THREE.AmbientLight(0xffffff, 1));
 
 camera.position.z = 5;
 console.log(ground.top);
@@ -147,6 +153,9 @@ function handleKeyPress(event) {
       break;
     case "KeyW":
       keys.w.pressed = true;
+      break;
+    case "Space":
+      cube.velocity.y = 0.08;
       break;
   }
 }
@@ -182,44 +191,53 @@ function updateVelocity() {
   else if (keys.w.pressed) cube.velocity.z = -0.05;
 }
 
-const enemy = new Box({
-  width: 1,
-  height: 1,
-  depth: 1,
-  velocity: {
-    x: 0,
-    y: -0.01,
-    z: 0.03,
-  },
-  position: {
-    x: 0,
-    y: 0,
-    z: -4,
-  },
-  color:'red',
-  zAcceleration:true
-});
+const enemies = [];
 
-cube.castShadow = true;
-scene.add(enemy);
-const enemies=[enemy]
-
+let frames = 0;
+let spawnRate = 200;
 function animate() {
-  const animationId=requestAnimationFrame(animate);
+  const animationId = requestAnimationFrame(animate);
   renderer.render(scene, camera);
   // this.gravity = 0;
   cube.velocity.x = 0;
   cube.velocity.z = 0;
   updateVelocity();
   cube.update(ground);
-  enemies.forEach(enemy=>{
-    enemy.update(ground)
-    if(boxCollision({
-      box1:cube,
-      box2:enemy
-    })){
-      cancelAnimationFrame(animationId)
+  enemies.forEach((enemy) => {
+    enemy.update(ground);
+    if (
+      boxCollision({
+        box1: cube,
+        box2: enemy,
+      })
+    ) {
+      cancelAnimationFrame(animationId);
     }
-  })
+  });
+
+  if (frames % spawnRate === 0) {
+    if (spawnRate > 20) spawnRate -= 20;
+    const enemy = new Box({
+      width: 1,
+      height: 1,
+      depth: 1,
+      velocity: {
+        x: 0,
+        y: -0.01,
+        z: 0.1,
+      },
+      position: {
+        x: (Math.random() - 0.5) * 10,
+        y: 0,
+        z: -20,
+      },
+      color: "red",
+      zAcceleration: true,
+    });
+    cube.castShadow = true;
+    scene.add(enemy);
+    enemies.push(enemy);
+  }
+  frames++;
 }
 animate();

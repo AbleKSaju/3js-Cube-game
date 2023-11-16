@@ -24,6 +24,7 @@ class Box extends THREE.Mesh {
     color = 0x00ff00,
     velocity = { x: 0, y: 0, z: 0 },
     position = { x: 0, y: 0, z: 0 },
+    zAcceleration=false
   }) {
     super(
       new THREE.BoxGeometry(width, height, depth),
@@ -60,7 +61,10 @@ class Box extends THREE.Mesh {
   }
 
   update(ground) {
+
     this.updateSides();
+    if(this.zAcceleration)this.velocity.z+=0.003
+
     this.position.x += this.velocity.x;
     this.position.z += this.velocity.z;
 
@@ -177,13 +181,45 @@ function updateVelocity() {
   if (keys.s.pressed) cube.velocity.z = 0.05;
   else if (keys.w.pressed) cube.velocity.z = -0.05;
 }
+
+const enemy = new Box({
+  width: 1,
+  height: 1,
+  depth: 1,
+  velocity: {
+    x: 0,
+    y: -0.01,
+    z: 0.03,
+  },
+  position: {
+    x: 0,
+    y: 0,
+    z: -4,
+  },
+  color:'red',
+  zAcceleration:true
+});
+
+cube.castShadow = true;
+scene.add(enemy);
+const enemies=[enemy]
+
 function animate() {
-  requestAnimationFrame(animate);
+  const animationId=requestAnimationFrame(animate);
   renderer.render(scene, camera);
   // this.gravity = 0;
   cube.velocity.x = 0;
   cube.velocity.z = 0;
   updateVelocity();
   cube.update(ground);
+  enemies.forEach(enemy=>{
+    enemy.update(ground)
+    if(boxCollision({
+      box1:cube,
+      box2:enemy
+    })){
+      cancelAnimationFrame(animationId)
+    }
+  })
 }
 animate();

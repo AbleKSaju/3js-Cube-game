@@ -18,8 +18,8 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 class Box extends THREE.Mesh {
   constructor({
-    height,
     width,
+    height,
     depth,
     color = 0x00ff00,
     velocity = { x: 0, y: 0, z: 0 },
@@ -32,28 +32,57 @@ class Box extends THREE.Mesh {
     this.width = width;
     this.height = height;
     this.depth = depth;
-    console.log(position.x, "x");
+
     this.position.set(position.x, position.y, position.z);
+
+    this.right = this.position.x + this.width / 2;
+    this.left = this.position.x - this.width / 2;
+
     this.bottom = this.position.y - this.height / 2;
     this.top = this.position.y + this.height / 2;
+
+    this.front = this.position.z + this.depth / 2;
+    this.back = this.position.z - this.depth / 2;
+
     this.velocity = velocity;
-    this.gravity = -0.005;
+    this.gravity = -0.002;
   }
 
-  update(group) {
+  updateSides() {
+    this.right = this.position.x + this.width / 2;
+    this.left = this.position.x - this.width / 2;
+
     this.bottom = this.position.y - this.height / 2;
     this.top = this.position.y + this.height / 2;
-    this.applyGravity()
+
+    this.front = this.position.z + this.depth / 2;
+    this.back = this.position.z - this.depth / 2;
   }
-  applyGravity() {
+
+  update(ground) {
+    this.updateSides();
+    this.position.x += this.velocity.x;
+    this.position.z += this.velocity.z;
+
+    this.applyGravity(ground);
+  }
+  applyGravity(ground) {
     this.velocity.y += this.gravity;
 
-    if (this.bottom + this.velocity.y <= ground.top) {
+    if (boxCollision({ box1: this, box2: ground })) {
       this.velocity.y *= 0.8;
-
       this.velocity.y = -this.velocity.y;
     } else this.position.y += this.velocity.y;
   }
+}
+
+function boxCollision({ box1, box2 }) {
+  const xCollision = box1.right >= box2.left && box1.left <= box2.right;
+  const yCollision =
+    box1.bottom + box1.velocity.y <= box2.top && box1.top >= box2.bottom;
+  const zCollision = box1.front >= box2.back && box1.back <= box2.front;
+
+  return xCollision && yCollision && zCollision;
 }
 
 const cube = new Box({
@@ -95,9 +124,66 @@ camera.position.z = 5;
 console.log(ground.top);
 console.log(cube.bottom);
 
+const keys = {
+  a: { pressed: false },
+  d: { pressed: false },
+  s: { pressed: false },
+  w: { pressed: false },
+};
+function handleKeyPress(event) {
+  switch (event.code) {
+    case "KeyA":
+      keys.a.pressed = true;
+      break;
+    case "KeyD":
+      keys.d.pressed = true;
+      break;
+    case "KeyS":
+      keys.s.pressed = true;
+      break;
+    case "KeyW":
+      keys.w.pressed = true;
+      break;
+  }
+}
+
+function handleKeyRelease(event) {
+  switch (event.code) {
+    case "KeyA":
+      keys.a.pressed = false;
+      break;
+    case "KeyD":
+      keys.d.pressed = false;
+      break;
+    case "KeyS":
+      keys.s.pressed = false;
+      break;
+    case "KeyW":
+      keys.w.pressed = false;
+      break;
+  }
+}
+
+window.addEventListener("keydown", handleKeyPress);
+window.addEventListener("keyup", handleKeyRelease);
+
+function updateVelocity() {
+  cube.velocity.x = 0;
+  cube.velocity.z = 0;
+
+  if (keys.a.pressed) cube.velocity.x = -0.05;
+  else if (keys.d.pressed) cube.velocity.x = 0.05;
+
+  if (keys.s.pressed) cube.velocity.z = 0.05;
+  else if (keys.w.pressed) cube.velocity.z = -0.05;
+}
 function animate() {
   requestAnimationFrame(animate);
   renderer.render(scene, camera);
+  // this.gravity = 0;
+  cube.velocity.x = 0;
+  cube.velocity.z = 0;
+  updateVelocity();
   cube.update(ground);
 }
 animate();
